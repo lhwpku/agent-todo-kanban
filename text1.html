@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>任务看板</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: system-ui, sans-serif;
+    }
+    :root {
+      --bg-main: #f1f5f9;
+      --bg-column: #e2e8f0;
+      --bg-card: #ffffff;
+      --text-color: #222222;
+      --input-bg: #fff;
+      --border-color: #cbd5e1;
+    }
+    .dark-mode {
+      --bg-main: #1e293b;
+      --bg-column: #334155;
+      --bg-card: #475569;
+      --text-color: #f1f5f9;
+      --input-bg: #334155;
+      --border-color: #64748b;
+    }
+    body {
+      background-color: var(--bg-main);
+      padding: 24px;
+      color: var(--text-color);
+      transition: background 0.3s, color 0.3s;
+    }
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    .header-row{
+      display:flex;
+      justify-content: space-between;
+      align-items:center;
+      margin-bottom:24px;
+    }
+    h1 {
+      font-size:28px;
+    }
+    #themeBtn{
+      padding:8px 14px;
+      font-size:14px;
+      background:#475569;
+      color:white;
+    }
+    .board {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+    }
+    .column {
+      background: var(--bg-column);
+      border-radius: 10px;
+      padding: 16px;
+      min-height: 500px;
+    }
+    .column h2 {
+      font-size: 18px;
+      margin-bottom: 16px;
+      color: var(--text-color);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .task-list {
+      min-height: 100px;
+    }
+    .task-card {
+      background: var(--bg-card);
+      padding: 12px;
+      border-radius: 8px;
+      margin-bottom: 10px;
+      cursor: grab;
+      box-shadow: 0 2px 4px #00000015;
+    }
+    .task-card:active {
+      cursor: grabbing;
+    }
+    .priority-high {
+      border-left: 6px solid #ef4444;
+    }
+    .priority-medium {
+      border-left: 6px solid #f59e0b;
+    }
+    .priority-low {
+      border-left: 6px solid #10b981;
+    }
+    .task-text {
+      margin-bottom: 8px;
+      outline: none;
+      color: var(--text-color);
+    }
+    .task-actions {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .task-priority-tag {
+      font-size: 12px;
+      padding: 2px 6px;
+      border-radius: 4px;
+      color: white;
+    }
+    .tag-high {
+      background: #ef4444;
+    }
+    .tag-medium {
+      background: #f59e0b;
+    }
+    .tag-low {
+      background: #10b981;
+    }
+    button {
+      border: none;
+      padding: 4px 8px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size:12px;
+    }
+    .del-btn {
+      background-color: #dc2626;
+      color:white;
+    }
+    .add-wrap{
+      margin-bottom:20px;
+      display:flex;
+      gap:8px;
+    }
+    #taskInput{
+      flex:1;
+      padding:10px;
+      border-radius:6px;
+      border:1px solid var(--border-color);
+      background:var(--input-bg);
+      color:var(--text-color);
+    }
+    #prioritySelect{
+      padding:10px;
+      border-radius:6px;
+      border:1px solid var(--border-color);
+      background:var(--input-bg);
+      color:var(--text-color);
+    }
+    #addBtn{
+      background:#2563eb;
+      color:white;
+    }
+    .drag-over{
+      background:#cbd5e1;
+    }
+    .dark-mode .drag-over{
+      background:#475569;
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+  <div class="header-row">
+    <h1>任务看板</h1>
+    <button id="themeBtn">切换深色模式</button>
+  </div>
+  <div class="add-wrap">
+    <input id="taskInput" placeholder="输入新任务">
+    <select id="prioritySelect">
+      <option value="high">高优先级</option>
+      <option value="medium">中优先级</option>
+      <option value="low">低优先级</option>
+    </select>
+    <button id="addBtn">添加任务</button>
+  </div>
+  <div class="board">
+    <div class="column" data-status="todo">
+      <h2>待办</h2>
+      <div class="task-list"></div>
+    </div>
+    <div class="column" data-status="doing">
+      <h2>进行中</h2>
+      <div class="task-list"></div>
+    </div>
+    <div class="column" data-status="done">
+      <h2>已完成</h2>
+      <div class="task-list"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const statusList = ['todo','doing','done'];
+  let taskData = JSON.parse(localStorage.getItem('taskBoard')) || [];
+  const taskLists = document.querySelectorAll('.task-list');
+  const taskInput = document.getElementById('taskInput');
+  const prioritySelect = document.getElementById('prioritySelect');
+  const addBtn = document.getElementById('addBtn');
+  const themeBtn = document.getElementById('themeBtn');
+
+  // 深色模式本地存储
+  if(localStorage.getItem('dark')==='1'){
+    document.body.classList.add('dark-mode');
+    themeBtn.innerText="切换浅色模式";
+  }
+  themeBtn.onclick = ()=>{
+    document.body.classList.toggle('dark-mode');
+    const isDark = document.body.classList.contains('dark-mode');
+    localStorage.setItem('dark', isDark ? '1':'0');
+    themeBtn.innerText = isDark ? "切换浅色模式":"切换深色模式";
+  }
+
+  function saveData(){
+    localStorage.setItem('taskBoard',JSON.stringify(taskData));
+  }
+
+  function render(){
+    taskLists.forEach(list=>list.innerHTML='');
+    taskData.forEach(task=>{
+      const card = createCard(task);
+      const targetList = document.querySelector(`.column[data-status="${task.status}"] .task-list`);
+      targetList.appendChild(card);
+    })
+  }
+
+  function createCard(task){
+    const div = document.createElement('div');
+    div.className = `task-card priority-${task.priority}`;
+    div.draggable=true;
+    div.dataset.id = task.id;
+    div.innerHTML = `
+      <div class="task-text" contenteditable="true">${task.content}</div>
+      <div class="task-actions">
+        <span class="task-priority-tag tag-${task.priority}">
+          ${task.priority==='high'?'高':task.priority==='medium'?'中':'低'}
+        </span>
+        <button class="del-btn">删除</button>
+      </div>
+    `;
+    const textDom = div.querySelector('.task-text');
+    textDom.onblur = ()=>{
+      const t = taskData.find(i=>i.id===task.id);
+      t.content = textDom.innerText;
+      saveData();
+    }
+    div.querySelector('.del-btn').onclick = ()=>{
+      taskData = taskData.filter(i=>i.id!==task.id);
+      saveData();render();
+    }
+    div.ondragstart = (e)=>{
+      e.dataTransfer.setData('text/plain', task.id);
+    }
+    return div;
+  }
+
+  // 修复拖拽：增加dragenter，并且判断是否仍然在容器内部，防止hover卡片时丢失drop区域
+  taskLists.forEach(list=>{
+    list.ondragenter = (e)=>{
+      e.preventDefault();
+      list.classList.add('drag-over');
+    }
+    list.ondragover=(e)=>{
+      e.preventDefault(); // 关键：必须持续阻止默认行为，允许放置
+    }
+    list.ondragleave=(e)=>{
+      // 只有真正离开list容器才移除高亮，鼠标移到子卡片上不触发dragleave
+      if (!list.contains(e.relatedTarget)) {
+        list.classList.remove('drag-over');
+      }
+    }
+    list.ondrop=(e)=>{
+      e.preventDefault();
+      list.classList.remove('drag-over');
+      const taskId = e.dataTransfer.getData('text/plain');
+      const newStatus = list.closest('.column').dataset.status;
+      const targetTask = taskData.find(t=>t.id===taskId);
+      targetTask.status = newStatus;
+      saveData();render();
+    }
+  })
+
+  addBtn.onclick = ()=>{
+    const content = taskInput.value.trim();
+    if(!content) return;
+    const newTask = {
+      id:Date.now().toString(),
+      content,
+      priority:prioritySelect.value,
+      status:'todo'
+    }
+    taskData.push(newTask);
+    saveData();render();
+    taskInput.value='';
+  }
+  render();
+</script>
+</body>
+</html>
